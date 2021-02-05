@@ -1,6 +1,7 @@
 /* antimicrox Gamepad to KB+M event mapper
  * Copyright (C) 2015 Travis Nickles <nickles.travis@gmail.com>
  * Copyright (C) 2020 Jagoda Górska <juliagoda.pl@protonmail>
+ * Copyright (C) 2021 Paweł Kotiuk <kotiuk@zohomail.eu>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -174,11 +175,15 @@ MainWindow::MainWindow(QMap<SDL_JoystickID, InputDevice *> *joysticks, CommandLi
 
     ui->uacPushButton->setVisible(false);
 
-    QTimer *timer = new QTimer(this);
+    bool notify_low = m_settings->value("Notifications/notify_about_low_battery", true).toBool();
+    bool notify_empty = m_settings->value("Notifications/notify_about_empty_battery", true).toBool();
 
-    connect(timer, &QTimer::timeout, [this]() { this->checkEachTenMinutesBattery(m_joysticks); });
-
-    timer->start(CHECK_BATTERIES_MSEC);
+    if (notify_low || notify_empty)
+    {
+        QTimer *timer = new QTimer(this);
+        connect(timer, &QTimer::timeout, [this]() { this->checkEachTenMinutesBattery(m_joysticks); });
+        timer->start(CHECK_BATTERIES_MSEC);
+    }
 }
 
 MainWindow::~MainWindow()
@@ -1816,7 +1821,7 @@ void MainWindow::showBatteryLevel(SDL_JoystickPowerLevel powerLevSDL, QString ba
                                                           .arg(device->getSDLName())
                                                    << "--icon=battery-caution");
 #else
-        qWarn() << "Notifications not implemented for this system";
+        qWarning() << "Notifications not implemented for this system";
 #endif
     }
 }
@@ -2030,7 +2035,9 @@ void MainWindow::checkEachTenMinutesBattery(QMap<SDL_JoystickID, InputDevice *> 
         deviceIter.next();
         InputDevice *tempDevice = deviceIter.value();
 
-        showBatteryLevel(SDL_JOYSTICK_POWER_LOW, "Low", "20%", tempDevice);
-        showBatteryLevel(SDL_JOYSTICK_POWER_EMPTY, "Empty", "5%", tempDevice);
+        if (m_settings->value("Notifications/notify_about_low_battery", true).toBool())
+            showBatteryLevel(SDL_JOYSTICK_POWER_LOW, "Low", "20%", tempDevice);
+        if (m_settings->value("Notifications/notify_about_empty_battery", true).toBool())
+            showBatteryLevel(SDL_JOYSTICK_POWER_EMPTY, "Empty", "5%", tempDevice);
     }
 }
