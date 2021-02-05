@@ -60,9 +60,11 @@
 #include <QHideEvent>
 #include <QLibraryInfo>
 #include <QLocalServer>
+#include <QMap>
 #include <QMapIterator>
 #include <QMessageBox>
 #include <QPointer>
+#include <QProcess>
 #include <QRegularExpression>
 #include <QResource>
 #include <QShowEvent>
@@ -1793,24 +1795,31 @@ void MainWindow::updateMenuOptions()
 void MainWindow::showBatteryLevel(SDL_JoystickPowerLevel powerLevSDL, QString batteryLev, QString percent,
                                   InputDevice *device)
 {
-    if (SDL_JoystickCurrentPowerLevel(device->getJoyHandle()) == powerLevSDL)
+    static QMap<QString, SDL_JoystickPowerLevel> checked_joysticks;
+    auto device_name = device->getStringIdentifier();
+    if (!checked_joysticks.contains(device_name))
     {
-        QResource batteryFile(":/images/battery-low-level.png");
-        QPixmap pm(30, 30);
-        pm.load(batteryFile.absoluteFilePath());
+        checked_joysticks[device_name] = SDL_JoystickPowerLevel::SDL_JOYSTICK_POWER_UNKNOWN;
+    }
 
-        QMessageBox msgBox;
-        msgBox.setWindowTitle(tr("%1 battery").arg(batteryLev));
-        msgBox.setIconPixmap(pm);
-        msgBox.setText(tr("Battery level is less than %1").arg(percent));
-        msgBox.setInformativeText(
-            tr("Device number: %1\nDevice name: %2").arg(device->getRealJoyNumber()).arg(device->getSDLName()));
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setDefaultButton(QMessageBox::Ok);
-        msgBox.exec();
+    auto previous_battery_level = checked_joysticks[device_name];
+    checked_joysticks[device_name] = SDL_JoystickCurrentPowerLevel(device->getJoyHandle());
+
+    if (checked_joysticks[device_name] == powerLevSDL && checked_joysticks[device_name] != previous_battery_level)
+    {
+#ifdef Q_OS_UNIX
+        QProcess process;
+        qDebug() << "Notifying about battery level of device: " << device->getSDLName();
+        process.start("notify-send", QStringList() << tr("Battery level is less than %1").arg(percent)
+                                                   << tr("Device number: %1\nDevice name: %2")
+                                                          .arg(device->getRealJoyNumber())
+                                                          .arg(device->getSDLName())
+                                                   << "--icon=battery-caution");
+#else
+        qWarn() << "Notifications not implemented for this system";
+#endif
     }
 }
-
 /**
  * @brief Select appropriate tab with the specified index.
  * @param Index of appropriate tab.
