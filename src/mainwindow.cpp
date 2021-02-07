@@ -1813,6 +1813,7 @@ void MainWindow::showBatteryLevel(SDL_JoystickPowerLevel powerLevSDL, QString ba
                                                    << tr("Device number: %1\nDevice name: %2")
                                                           .arg(device->getRealJoyNumber())
                                                           .arg(device->getSDLName())
+                                                   << " --app-name=antimicrox --urgency=normal "
                                                    << "--icon=battery-caution");
 #else
         qWarning() << "Notifications not implemented for this system";
