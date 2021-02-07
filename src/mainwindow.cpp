@@ -175,15 +175,9 @@ MainWindow::MainWindow(QMap<SDL_JoystickID, InputDevice *> *joysticks, CommandLi
 
     ui->uacPushButton->setVisible(false);
 
-    bool notify_low = m_settings->value("Notifications/notify_about_low_battery", true).toBool();
-    bool notify_empty = m_settings->value("Notifications/notify_about_empty_battery", true).toBool();
-
-    if (notify_low || notify_empty)
-    {
-        QTimer *timer = new QTimer(this);
-        connect(timer, &QTimer::timeout, [this]() { this->checkEachTenMinutesBattery(m_joysticks); });
-        timer->start(CHECK_BATTERIES_MSEC);
-    }
+    QTimer *timer = new QTimer(this);
+    connect(timer, &QTimer::timeout, [this]() { this->checkEachTenMinutesBattery(m_joysticks); });
+    timer->start(CHECK_BATTERIES_MSEC);
 }
 
 MainWindow::~MainWindow()
@@ -2030,14 +2024,19 @@ void MainWindow::checkEachTenMinutesBattery(QMap<SDL_JoystickID, InputDevice *> 
 {
     QMapIterator<SDL_JoystickID, InputDevice *> deviceIter(*joysticks);
 
+    bool notify_low = m_settings->value("Notifications/notify_about_low_battery", true).toBool();
+    bool notify_empty = m_settings->value("Notifications/notify_about_empty_battery", true).toBool();
+    if (!notify_low && !notify_empty)
+        return;
+
     while (deviceIter.hasNext())
     {
         deviceIter.next();
         InputDevice *tempDevice = deviceIter.value();
 
-        if (m_settings->value("Notifications/notify_about_low_battery", true).toBool())
+        if (notify_low)
             showBatteryLevel(SDL_JOYSTICK_POWER_LOW, "Low", "20%", tempDevice);
-        if (m_settings->value("Notifications/notify_about_empty_battery", true).toBool())
+        if (notify_empty)
             showBatteryLevel(SDL_JOYSTICK_POWER_EMPTY, "Empty", "5%", tempDevice);
     }
 }
